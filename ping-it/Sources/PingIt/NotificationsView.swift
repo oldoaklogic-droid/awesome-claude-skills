@@ -41,10 +41,9 @@ struct NotificationsView: View {
                 }
 
                 if filtered.isEmpty {
-                    ContentUnavailableView("All caught up",
-                                           systemImage: "bell.slash",
-                                           description: Text("Nothing to see here — yet."))
-                        .padding(.top, 60)
+                    EmptyStateView(symbol: "bell.badge",
+                                   title: "All caught up",
+                                   message: "When someone likes, replies, or follows, it lands here.")
                 }
             }
             .padding(.horizontal, 16)
@@ -99,11 +98,11 @@ private struct NotificationRow: View {
         .contentShape(Rectangle())
 
         if let postID = notification.postID, store.post(postID) != nil {
-            NavigationLink(value: Route.thread(postID)) { row }
-                .buttonStyle(.plain)
+            NavigationLink(value: Route.thread(postID)) { row.hoverHighlight() }
+                .buttonStyle(PressableStyle(scale: 0.98))
         } else {
-            NavigationLink(value: Route.profile(actor.id)) { row }
-                .buttonStyle(.plain)
+            NavigationLink(value: Route.profile(actor.id)) { row.hoverHighlight() }
+                .buttonStyle(PressableStyle(scale: 0.98))
         }
     }
 }

@@ -111,13 +111,15 @@ struct ComposeView: View {
                 characterRing
 
                 Button(actionLabel) { submit() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(PrimaryButtonStyle())
                     .disabled(!canSubmit)
+                    .opacity(canSubmit ? 1 : 0.5)
+                    .animation(Motion.fade, value: canSubmit)
                     .keyboardShortcut(.return, modifiers: .command)
             }
         }
         .padding(20)
-        .frame(width: 520)
+        .presentationDragIndicator(.visible)
         .onAppear {
             if case .edit(let post) = mode { text = post.text }
         }
@@ -147,6 +149,7 @@ struct ComposeView: View {
                 .stroke(remaining < 0 ? Color.red : (remaining < 20 ? .orange : Color.accentColor),
                         style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+                .animation(Motion.standard, value: progress)
             if remaining < 40 {
                 Text("\(remaining)")
                     .font(.caption2)

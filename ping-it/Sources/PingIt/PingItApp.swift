@@ -1,29 +1,16 @@
 import SwiftUI
-import AppKit
-
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        // When launched via `swift run` there is no app bundle, so make sure
-        // the process behaves like a regular foreground application.
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-}
 
 @main
 struct PingItApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = AppStore()
     @AppStorage("appearance") private var appearance: Appearance = .system
 
     var body: some Scene {
-        WindowGroup("PING IT") {
+        WindowGroup {
             ContentView()
                 .environmentObject(store)
                 .preferredColorScheme(appearance.colorScheme)
-                .frame(minWidth: 980, minHeight: 640)
         }
-        .windowToolbarStyle(.unified)
     }
 }
 

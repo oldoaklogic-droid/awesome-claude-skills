@@ -1,5 +1,5 @@
 import SwiftUI
-import AppKit
+import UIKit
 
 // MARK: - Post card
 
@@ -59,8 +59,9 @@ struct PostCard: View {
             }
         }
         .padding(.vertical, 10)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 8)
         .contentShape(Rectangle())
+        .hoverHighlight()
     }
 
     private var header: some View {
@@ -98,14 +99,14 @@ struct PostCard: View {
             }
             Divider()
             Button("Copy text") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(post.text, forType: .string)
+                UIPasteboard.general.string = post.text
             }
         } label: {
             Image(systemName: "ellipsis")
                 .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
         .fixedSize()
     }
 }
@@ -119,8 +120,8 @@ struct MediaStrip: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(tint.opacity(0.15).gradient)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(tint.opacity(0.14))
                     .overlay {
                         Image(systemName: symbol)
                             .font(.system(size: 36))
@@ -175,23 +176,31 @@ struct PollView: View {
             .padding(8)
             .background(alignment: .leading) {
                 GeometryReader { proxy in
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(Color.accentColor.opacity(0.25))
                         .frame(width: max(proxy.size.width * fraction, 4))
+                        .animation(Motion.smooth, value: fraction)
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.3)))
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.quaternary.opacity(0.3)))
         } else {
             Button {
-                store.vote(postID: post.id, optionID: option.id)
+                withAnimation(Motion.smooth) {
+                    store.vote(postID: post.id, optionID: option.id)
+                }
             } label: {
                 Text(option.title)
                     .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.accentColor)
                     .frame(maxWidth: .infinity)
-                    .padding(6)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 1.5)
+                    )
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.bordered)
-            .tint(.accentColor)
+            .buttonStyle(PressableStyle())
         }
     }
 }
@@ -229,6 +238,12 @@ struct ActionBar: View {
     let post: Post
     @Binding var composeMode: ComposeView.Mode?
 
+    @State private var burstTrigger = 0
+
+    private var isLiked: Bool { store.likedPostIDs.contains(post.id) }
+    private var isReposted: Bool { store.repostedPostIDs.contains(post.id) }
+    private var isBookmarked: Bool { store.bookmarkedPostIDs.contains(post.id) }
+
     var body: some View {
         HStack(spacing: 0) {
             actionButton(symbol: "bubble.left",
@@ -239,45 +254,74 @@ struct ActionBar: View {
             Spacer()
             repostMenu
             Spacer()
-            actionButton(symbol: store.likedPostIDs.contains(post.id) ? "heart.fill" : "heart",
-                         count: post.likeCount,
-                         tint: store.likedPostIDs.contains(post.id) ? .pink : .secondary) {
-                store.toggleLike(post.id)
-            }
+            likeButton
             Spacer()
             actionButton(symbol: "chart.bar.xaxis", count: post.viewCount, tint: .secondary) {}
             Spacer()
-            actionButton(symbol: store.bookmarkedPostIDs.contains(post.id) ? "bookmark.fill" : "bookmark",
-                         count: nil,
-                         tint: store.bookmarkedPostIDs.contains(post.id) ? .accentColor : .secondary) {
-                store.toggleBookmark(post.id)
-            }
+            bookmarkButton
             actionButton(symbol: "square.and.arrow.up", count: nil, tint: .secondary) {
                 let author = store.user(post.authorID)
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString("pingit://\(author.handle)/status/\(post.id.uuidString)", forType: .string)
+                UIPasteboard.general.string = "pingit://\(author.handle)/status/\(post.id.uuidString)"
             }
         }
         .padding(.top, 2)
         .frame(maxWidth: 420, alignment: .leading)
     }
 
+    private var likeButton: some View {
+        Button {
+            if !isLiked { burstTrigger += 1 }
+            withAnimation(Motion.standard) { store.toggleLike(post.id) }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .scaleEffect(isLiked ? 1.1 : 1)
+                    .overlay(HeartBurstView(trigger: burstTrigger))
+                animatedCount(post.likeCount)
+            }
+            .foregroundStyle(isLiked ? Color.pink : Color.secondary)
+        }
+        .buttonStyle(PressableStyle(scale: 0.9))
+        .animation(Motion.standard, value: isLiked)
+    }
+
+    private var bookmarkButton: some View {
+        Button {
+            withAnimation(Motion.standard) { store.toggleBookmark(post.id) }
+        } label: {
+            Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                .foregroundStyle(isBookmarked ? Color.accentColor : Color.secondary)
+                .symbolEffect(.bounce, value: isBookmarked)
+        }
+        .buttonStyle(PressableStyle(scale: 0.9))
+    }
+
     private var repostMenu: some View {
-        let reposted = store.repostedPostIDs.contains(post.id)
-        return Menu {
-            Button(reposted ? "Undo repost" : "Repost") { store.toggleRepost(post.id) }
+        Menu {
+            Button(isReposted ? "Undo repost" : "Repost") {
+                withAnimation(Motion.standard) { store.toggleRepost(post.id) }
+            }
             Button("Quote") { composeMode = .quote(post) }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "arrow.2.squarepath")
-                Text(compactCount(post.repostCount))
-                    .font(.caption)
-                    .monospacedDigit()
+                    .rotationEffect(.degrees(isReposted ? 180 : 0))
+                animatedCount(post.repostCount)
             }
-            .foregroundStyle(reposted ? Color.green : Color.secondary)
+            .foregroundStyle(isReposted ? Color.green : Color.secondary)
         }
-        .menuStyle(.borderlessButton)
         .fixedSize()
+        .animation(Motion.standard, value: isReposted)
+    }
+
+    /// Counts roll between values instead of jumping; tabular digits stop jitter.
+    private func animatedCount(_ value: Int) -> some View {
+        Text(compactCount(value))
+            .font(.caption)
+            .monospacedDigit()
+            .contentTransition(.numericText())
+            .animation(Motion.standard, value: value)
+            .opacity(value > 0 ? 1 : 0)
     }
 
     private func actionButton(symbol: String, count: Int?, tint: Color, action: @escaping () -> Void) -> some View {
@@ -292,7 +336,7 @@ struct ActionBar: View {
             }
             .foregroundStyle(tint)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.9))
     }
 }
 
@@ -335,7 +379,9 @@ struct ThreadView: View {
             }
             .navigationTitle("Ping")
         } else {
-            ContentUnavailableView("This ping was deleted", systemImage: "trash")
+            EmptyStateView(symbol: "trash",
+                           title: "This ping is gone",
+                           message: "It was deleted by its author. The conversation moved on — you should too.")
         }
     }
 
@@ -355,11 +401,15 @@ struct ThreadView: View {
             Button("Reply") {
                 let text = replyText.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !text.isEmpty else { return }
-                store.createPost(text: text, replyTo: post.id)
+                withAnimation(Motion.standard) {
+                    store.createPost(text: text, replyTo: post.id)
+                }
                 replyText = ""
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(PrimaryButtonStyle())
             .disabled(replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .opacity(replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+            .animation(Motion.fade, value: replyText.isEmpty)
         }
         .padding(.vertical, 10)
     }

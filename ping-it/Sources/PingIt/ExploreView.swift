@@ -21,7 +21,7 @@ struct ExploreView: View {
             .padding(.horizontal, 16)
         }
         .navigationTitle("Explore")
-        .searchable(text: $query, placement: .toolbar, prompt: "Search PING IT")
+        .searchable(text: $query, prompt: "Search PING IT")
     }
 
     // MARK: Trends
@@ -49,8 +49,9 @@ struct ExploreView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableStyle(scale: 0.98))
                 .padding(.vertical, 8)
+                .hoverHighlight()
                 Divider()
             }
         }
@@ -91,8 +92,9 @@ struct ExploreView: View {
                 .padding(.vertical, 10)
 
             if postHits.isEmpty {
-                ContentUnavailableView.search(text: trimmedQuery)
-                    .padding(.top, 40)
+                EmptyStateView(symbol: "magnifyingglass",
+                               title: "No pings for \u{201C}\(trimmedQuery)\u{201D}",
+                               message: "Try a different word, or start the conversation yourself.")
             } else {
                 ForEach(postHits) { post in
                     PostCard(post: post)
@@ -138,16 +140,25 @@ struct UserRow: View {
     }
 }
 
+/// Morphs between filled "Follow" and outlined "Following" with a width spring.
 struct FollowButton: View {
     @EnvironmentObject private var store: AppStore
     let userID: UUID
 
     var body: some View {
         let following = store.isFollowing(userID)
-        Button(following ? "Following" : "Follow") {
-            store.toggleFollow(userID)
+        Button {
+            withAnimation(Motion.standard) { store.toggleFollow(userID) }
+        } label: {
+            Text(following ? "Following" : "Follow")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(following ? Color.primary : Color.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(following ? Color.clear : Color.accentColor))
+                .overlay(Capsule().strokeBorder(.quaternary, lineWidth: following ? 1 : 0))
         }
-        .buttonStyle(.bordered)
-        .tint(following ? .secondary : .accentColor)
+        .buttonStyle(PressableStyle())
+        .animation(Motion.standard, value: following)
     }
 }

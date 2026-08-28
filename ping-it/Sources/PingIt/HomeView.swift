@@ -22,18 +22,25 @@ struct HomeView: View {
                     quickComposer
                     Divider()
                     ForEach(timeline) { post in
-                        PostCard(post: post)
-                        Divider()
+                        Group {
+                            PostCard(post: post)
+                            Divider()
+                        }
+                        .scrollTransition(.animated(.easeOut(duration: 0.25))) { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1 : 0.3)
+                                .offset(y: phase.isIdentity ? 0 : 12)
+                        }
                     }
                     if timeline.isEmpty {
-                        ContentUnavailableView("Nothing here yet",
-                                               systemImage: "wind",
-                                               description: Text("Follow some accounts to fill your Following feed."))
-                            .padding(.top, 60)
+                        EmptyStateView(symbol: "wind",
+                                       title: "Your feed is waiting",
+                                       message: "Follow a few voices you trust and this space fills with conversation.")
                     }
                 } header: {
                     feedPicker
                 }
+                .animation(Motion.standard, value: feed)
             }
             .padding(.horizontal, 16)
         }
@@ -49,7 +56,8 @@ struct HomeView: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .padding(.vertical, 8)
-        .background(.background)
+        .padding(.horizontal, 4)
+        .background(.ultraThinMaterial)
     }
 
     private var quickComposer: some View {
@@ -62,11 +70,15 @@ struct HomeView: View {
             Button("Ping") {
                 let text = quickPingText.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !text.isEmpty, text.count <= store.characterLimit else { return }
-                store.createPost(text: text)
+                withAnimation(Motion.standard) {
+                    store.createPost(text: text)
+                }
                 quickPingText = ""
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(PrimaryButtonStyle())
             .disabled(quickPingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .opacity(quickPingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+            .animation(Motion.fade, value: quickPingText.isEmpty)
         }
         .padding(.vertical, 12)
     }

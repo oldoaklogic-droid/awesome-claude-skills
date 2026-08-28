@@ -9,10 +9,9 @@ struct BookmarksView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if store.bookmarkedPosts.isEmpty {
-                    ContentUnavailableView("Save pings for later",
-                                           systemImage: "bookmark",
-                                           description: Text("Bookmark pings to easily find them again in the future."))
-                        .padding(.top, 80)
+                    EmptyStateView(symbol: "bookmark",
+                                   title: "Save pings for later",
+                                   message: "Tap the bookmark on any ping and it waits for you here.")
                 } else {
                     ForEach(store.bookmarkedPosts) { post in
                         PostCard(post: post)
@@ -131,7 +130,7 @@ private struct CommunityCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.accentColor.gradient)
+                    .fill(Color.accentColor)
                     .overlay(Image(systemName: community.symbol).font(.title3).foregroundStyle(.white))
                     .frame(width: 48, height: 48)
                 VStack(alignment: .leading, spacing: 2) {

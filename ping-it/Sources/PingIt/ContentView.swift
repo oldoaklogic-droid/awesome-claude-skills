@@ -1,127 +1,72 @@
 import SwiftUI
 
-enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case home, explore, notifications, messages, bookmarks, lists, communities, profile, settings
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .home: return "Home"
-        case .explore: return "Explore"
-        case .notifications: return "Notifications"
-        case .messages: return "Messages"
-        case .bookmarks: return "Bookmarks"
-        case .lists: return "Lists"
-        case .communities: return "Communities"
-        case .profile: return "Profile"
-        case .settings: return "Settings"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .home: return "house"
-        case .explore: return "magnifyingglass"
-        case .notifications: return "bell"
-        case .messages: return "envelope"
-        case .bookmarks: return "bookmark"
-        case .lists: return "list.bullet.rectangle"
-        case .communities: return "person.3"
-        case .profile: return "person"
-        case .settings: return "gearshape"
-        }
-    }
-}
-
-/// Push destinations inside each section's NavigationStack.
+/// Push destinations inside each tab's NavigationStack.
 enum Route: Hashable {
-    case thread(UUID)   // post detail + replies
-    case profile(UUID)  // user profile
+    case thread(UUID)    // post detail + replies
+    case profile(UUID)   // user profile
+    case bookmarks
+    case lists
+    case communities
+    case settings
 }
 
 struct ContentView: View {
     @EnvironmentObject private var store: AppStore
-    @State private var selection: AppSection? = .home
     @State private var showCompose = false
 
     var body: some View {
-        NavigationSplitView {
-            sidebar
-        } detail: {
-            detail
+        TabView {
+            homeTab
+                .tabItem { Label("Home", systemImage: "house") }
+
+            TabStack { ExploreView() }
+                .tabItem { Label("Explore", systemImage: "magnifyingglass") }
+
+            TabStack { NotificationsView() }
+                .tabItem { Label("Alerts", systemImage: "bell") }
+                .badge(store.unreadNotificationCount)
+
+            TabStack { MessagesView() }
+                .tabItem { Label("Messages", systemImage: "envelope") }
+                .badge(store.unreadMessageCount)
+
+            TabStack { ProfileView(userID: store.currentUserID) }
+                .tabItem { Label("Profile", systemImage: "person") }
         }
         .sheet(isPresented: $showCompose) {
             ComposeView(mode: .new)
         }
     }
 
-    private var sidebar: some View {
-        VStack(spacing: 0) {
-            List(selection: $selection) {
-                HStack(spacing: 8) {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .font(.title2.bold())
-                        .foregroundStyle(Color.accentColor)
-                    Text("PING IT")
-                        .font(.title3.weight(.heavy))
+    /// Home carries the floating compose button so it never covers other tabs.
+    private var homeTab: some View {
+        TabStack {
+            HomeView()
+                .overlay(alignment: .bottomTrailing) {
+                    composeFAB
                 }
-                .padding(.vertical, 8)
-
-                ForEach(AppSection.allCases) { section in
-                    NavigationLink(value: section) {
-                        Label {
-                            Text(section.title)
-                        } icon: {
-                            Image(systemName: section.symbol)
-                        }
-                        .badge(badge(for: section))
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-
-            Button {
-                showCompose = true
-            } label: {
-                Label("Ping", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(12)
-        }
-        .navigationSplitViewColumnWidth(min: 200, ideal: 220)
-    }
-
-    private func badge(for section: AppSection) -> Int {
-        switch section {
-        case .notifications: return store.unreadNotificationCount
-        case .messages: return store.unreadMessageCount
-        default: return 0
         }
     }
 
-    @ViewBuilder
-    private var detail: some View {
-        switch selection ?? .home {
-        case .home: SectionStack { HomeView() }
-        case .explore: SectionStack { ExploreView() }
-        case .notifications: SectionStack { NotificationsView() }
-        case .messages: MessagesView()
-        case .bookmarks: SectionStack { BookmarksView() }
-        case .lists: SectionStack { ListsView() }
-        case .communities: SectionStack { CommunitiesView() }
-        case .profile: SectionStack { ProfileView(userID: store.currentUserID) }
-        case .settings: SectionStack { SettingsView() }
+    private var composeFAB: some View {
+        Button {
+            showCompose = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(Color.accentColor))
+                .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
         }
+        .buttonStyle(PressableStyle(scale: 0.92))
+        .padding(20)
+        .accessibilityLabel("New Ping")
     }
 }
 
-/// Wraps a section root in a NavigationStack that knows how to push
-/// post threads and user profiles.
-struct SectionStack<Root: View>: View {
+/// Wraps a tab root in a NavigationStack that knows every push destination.
+struct TabStack<Root: View>: View {
     @ViewBuilder var root: () -> Root
 
     var body: some View {
@@ -133,6 +78,14 @@ struct SectionStack<Root: View>: View {
                         ThreadView(postID: postID)
                     case .profile(let userID):
                         ProfileView(userID: userID)
+                    case .bookmarks:
+                        BookmarksView()
+                    case .lists:
+                        ListsView()
+                    case .communities:
+                        CommunitiesView()
+                    case .settings:
+                        SettingsView()
                     }
                 }
         }
@@ -147,7 +100,8 @@ struct AvatarView: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(user.avatarColor.gradient)
+            Circle().fill(user.avatarColor)
+            Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1)
             Image(systemName: user.avatarSymbol)
                 .font(.system(size: size * 0.45, weight: .medium))
                 .foregroundStyle(.white)

@@ -48,12 +48,37 @@ struct ProfileView: View {
                 }
 
                 if tabPosts.isEmpty {
-                    ContentUnavailableView(emptyTitle, systemImage: "text.bubble")
-                        .padding(.top, 40)
+                    EmptyStateView(symbol: "text.bubble",
+                                   title: emptyTitle,
+                                   message: isMe ? "When you ping, it shows up here." : "Nothing here yet.")
                 }
             }
         }
         .navigationTitle(user.displayName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isMe {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        NavigationLink(value: Route.bookmarks) {
+                            Label("Bookmarks", systemImage: "bookmark")
+                        }
+                        NavigationLink(value: Route.lists) {
+                            Label("Lists", systemImage: "list.bullet.rectangle")
+                        }
+                        NavigationLink(value: Route.communities) {
+                            Label("Communities", systemImage: "person.3")
+                        }
+                        Divider()
+                        NavigationLink(value: Route.settings) {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showEditProfile) {
             EditProfileView()
         }
@@ -69,7 +94,7 @@ struct ProfileView: View {
 
     private var banner: some View {
         Rectangle()
-            .fill(user.bannerColor.gradient)
+            .fill(user.bannerColor)
             .frame(height: 120)
     }
 
@@ -158,7 +183,8 @@ struct EditProfileView: View {
             }
         }
         .padding(20)
-        .frame(width: 440, height: 380)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
         .onAppear {
             let me = store.currentUser
             displayName = me.displayName
