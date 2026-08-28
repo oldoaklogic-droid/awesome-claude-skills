@@ -64,7 +64,7 @@ struct ContentView: View {
                         .font(.title2.bold())
                         .foregroundStyle(Color.accentColor)
                     Text("PING IT")
-                        .font(.title3.heavy())
+                        .font(.title3.weight(.heavy))
                 }
                 .padding(.vertical, 8)
 
